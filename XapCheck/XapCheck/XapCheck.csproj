@@ -34,6 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -53,8 +54,13 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Models\ActionLog.cs" />
+    <Compile Include="Models\AppSetting.cs" />
+    <Compile Include="Models\PurchaseListItem.cs" />
+    <Compile Include="Models\Enums\AlertLevel.cs" />
+    <Compile Include="Models\Enums\ActionType.cs" />
     <Compile Include="Models\Medicine.cs" />
     <Compile Include="Models\UserProfile.cs" />
+    <Compile Include="Data\HomePharmacyContext.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Form1.resx">
@@ -81,6 +87,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.1.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="2.1.14" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Controllers\" />

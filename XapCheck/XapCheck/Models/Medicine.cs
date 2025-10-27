@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace XapCheck.Models
 {
@@ -23,5 +20,41 @@ namespace XapCheck.Models
         // Връзка с профил
         public int UserProfileId { get; set; }
         public UserProfile UserProfile { get; set; }
+
+        // Domain-calculated helpers (not mapped to DB)
+        [NotMapped]
+        public bool IsExpired => DateTime.Today > ExpiryDate.Date;
+
+        [NotMapped]
+        public int DaysToExpiry => (ExpiryDate.Date - DateTime.Today).Days;
+
+        [NotMapped]
+        public bool IsRunningLow => Quantity < MinThreshold;
+
+        [NotMapped]
+        public AlertLevel AlertLevel
+        {
+            get
+            {
+                if (IsExpired)
+                {
+                    return AlertLevel.Red;
+                }
+
+                // Default window for "expiring soon" when settings are not available
+                const int defaultExpiringSoonDays = 10;
+                if (DaysToExpiry <= defaultExpiringSoonDays || IsRunningLow)
+                {
+                    return AlertLevel.Yellow;
+                }
+
+                return AlertLevel.Green;
+            }
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} ({Dosage}) - Qty: {Quantity}, Exp: {ExpiryDate:yyyy-MM-dd}";
+        }
     }
 }
