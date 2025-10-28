@@ -21,6 +21,8 @@ namespace XapCheck
         private readonly UserProfileController _userController;
         private readonly MedicineController _medicineController;
         private UserProfile _currentUser;
+        private BindingList<Medicine> _medicinesBinding;
+        private BindingList<PurchaseListItemView> _purchaseBinding;
 
         public Form1()
         {
@@ -35,16 +37,28 @@ namespace XapCheck
             dgvMedicines.Columns.Clear();
             dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.Name), HeaderText = "Name" });
             dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.Dosage), HeaderText = "Dosage" });
+            dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.Frequency), HeaderText = "Frequency" });
             dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.Quantity), HeaderText = "Qty" });
             dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.MinThreshold), HeaderText = "Min" });
-            dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.ExpiryDate), HeaderText = "Expiry" });
+            dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.ExpiryDate), HeaderText = "Expiry", DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
+            dgvMedicines.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(Medicine.DaysToExpiry), HeaderText = "Days Left" });
 
             dgvPurchase.AutoGenerateColumns = false;
             dgvPurchase.Columns.Clear();
-            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItem.MedicineId), HeaderText = "MedicineId" });
-            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItem.RecommendedQuantity), HeaderText = "Recommended" });
-            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItem.Reason), HeaderText = "Reason" });
-            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItem.CreatedAt), HeaderText = "Created" });
+            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItemView.MedicineName), HeaderText = "Medicine" });
+            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItemView.RecommendedQuantity), HeaderText = "Recommended" });
+            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItemView.Reason), HeaderText = "Reason" });
+            dgvPurchase.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(PurchaseListItemView.CreatedAt), HeaderText = "Created", DefaultCellStyle = new DataGridViewCellStyle { Format = "yyyy-MM-dd" } });
+
+            // Events
+            dgvMedicines.CellFormatting += dgvMedicines_CellFormatting;
+            dgvMedicines.SelectionChanged += (s, e) => UpdateButtonsEnabled();
+            dgvMedicines.CellDoubleClick += (s, e) =>
+            {
+                if (e.RowIndex >= 0) btnEdit_Click(s, EventArgs.Empty);
+            };
+            dgvMedicines.KeyDown += dgvMedicines_KeyDown;
+            this.FormClosed += (s, e) => _dbContext?.Dispose();
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -57,11 +71,31 @@ namespace XapCheck
 
         private void RefreshData()
         {
-            var meds = _medicineController.GetAllForUser(_currentUser.Id);
-            dgvMedicines.DataSource = new BindingList<Medicine>(meds.ToList());
+            try
+            {
+                var meds = _medicineController.GetAllForUser(_currentUser.Id);
+                _medicinesBinding = new BindingList<Medicine>(meds.ToList());
+                dgvMedicines.DataSource = _medicinesBinding;
 
-            var purchase = _medicineController.GetPurchaseList(_currentUser.Id);
-            dgvPurchase.DataSource = new BindingList<PurchaseListItem>(purchase.ToList());
+                var purchase = _medicineController.GetPurchaseList(_currentUser.Id);
+                var view = purchase.Select(p => new PurchaseListItemView
+                {
+                    Id = p.Id,
+                    MedicineId = p.MedicineId,
+                    MedicineName = p.Medicine != null ? p.Medicine.Name : $"#{p.MedicineId}",
+                    RecommendedQuantity = p.RecommendedQuantity,
+                    Reason = p.Reason,
+                    CreatedAt = p.CreatedAt
+                }).ToList();
+                _purchaseBinding = new BindingList<PurchaseListItemView>(view);
+                dgvPurchase.DataSource = _purchaseBinding;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Failed to load data: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            UpdateButtonsEnabled();
         }
 
         private Medicine GetSelectedMedicine()
@@ -78,12 +112,19 @@ namespace XapCheck
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
-            var editor = new MedicineEditorForm();
-            if (editor.ShowDialog(this) == DialogResult.OK)
+            try
             {
-                var medicine = editor.BuildMedicine();
-                _medicineController.AddMedicine(_currentUser.Id, medicine, Environment.UserName);
-                RefreshData();
+                var editor = new MedicineEditorForm();
+                if (editor.ShowDialog(this) == DialogResult.OK)
+                {
+                    var medicine = editor.BuildMedicine();
+                    _medicineController.AddMedicine(_currentUser.Id, medicine, Environment.UserName);
+                    RefreshData();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Failed to add: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -91,12 +132,19 @@ namespace XapCheck
         {
             var selected = GetSelectedMedicine();
             if (selected == null) return;
-            var editor = new MedicineEditorForm(selected);
-            if (editor.ShowDialog(this) == DialogResult.OK)
+            try
             {
-                var updated = editor.BuildMedicine(selected.Id, selected.UserProfileId);
-                _medicineController.UpdateMedicine(updated, Environment.UserName);
-                RefreshData();
+                var editor = new MedicineEditorForm(selected);
+                if (editor.ShowDialog(this) == DialogResult.OK)
+                {
+                    var updated = editor.BuildMedicine(selected.Id, selected.UserProfileId);
+                    _medicineController.UpdateMedicine(updated, Environment.UserName);
+                    RefreshData();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Failed to update: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -107,8 +155,15 @@ namespace XapCheck
             var confirm = MessageBox.Show(this, $"Delete {selected.Name}?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirm == DialogResult.Yes)
             {
-                _medicineController.DeleteMedicine(selected.Id, Environment.UserName);
-                RefreshData();
+                try
+                {
+                    _medicineController.DeleteMedicine(selected.Id, Environment.UserName);
+                    RefreshData();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Failed to delete: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
@@ -116,24 +171,116 @@ namespace XapCheck
         {
             var selected = GetSelectedMedicine();
             if (selected == null) return;
-            _medicineController.AdjustQuantity(selected.Id, +1, Environment.UserName);
-            RefreshData();
+            try
+            {
+                _medicineController.AdjustQuantity(selected.Id, +1, Environment.UserName);
+                RefreshData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Failed to adjust: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void btnDecrease_Click(object sender, EventArgs e)
         {
             var selected = GetSelectedMedicine();
             if (selected == null) return;
-            _medicineController.AdjustQuantity(selected.Id, -1, Environment.UserName);
-            RefreshData();
+            try
+            {
+                _medicineController.AdjustQuantity(selected.Id, -1, Environment.UserName);
+                RefreshData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Failed to adjust: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void btnResolve_Click(object sender, EventArgs e)
         {
             var item = GetSelectedPurchaseItem();
             if (item == null) return;
-            _medicineController.MarkPurchaseItemResolved(item.Id, Environment.UserName);
-            RefreshData();
+            try
+            {
+                _medicineController.MarkPurchaseItemResolved(item.Id, Environment.UserName);
+                RefreshData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"Failed to resolve: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void dgvMedicines_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var row = dgvMedicines.Rows[e.RowIndex];
+            var medicine = row.DataBoundItem as Medicine;
+            if (medicine == null) return;
+
+            // Color-coding rows by alert level
+            switch (medicine.AlertLevel)
+            {
+                case AlertLevel.Red:
+                    row.DefaultCellStyle.BackColor = Color.MistyRose;
+                    row.DefaultCellStyle.ForeColor = Color.DarkRed;
+                    break;
+                case AlertLevel.Yellow:
+                    row.DefaultCellStyle.BackColor = Color.LemonChiffon;
+                    row.DefaultCellStyle.ForeColor = Color.DarkGoldenrod;
+                    break;
+                default:
+                    row.DefaultCellStyle.BackColor = Color.White;
+                    row.DefaultCellStyle.ForeColor = Color.Black;
+                    break;
+            }
+        }
+
+        private void dgvMedicines_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Delete)
+            {
+                btnDelete_Click(sender, EventArgs.Empty);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Add || (e.KeyCode == Keys.Oemplus && e.Shift))
+            {
+                btnIncrease_Click(sender, EventArgs.Empty);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Subtract || e.KeyCode == Keys.OemMinus)
+            {
+                btnDecrease_Click(sender, EventArgs.Empty);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == Keys.Enter)
+            {
+                btnEdit_Click(sender, EventArgs.Empty);
+                e.Handled = true;
+            }
+        }
+
+        private void UpdateButtonsEnabled()
+        {
+            var hasSelection = GetSelectedMedicine() != null;
+            btnEdit.Enabled = hasSelection;
+            btnDelete.Enabled = hasSelection;
+            btnIncrease.Enabled = hasSelection;
+            btnDecrease.Enabled = hasSelection;
+
+            var hasPurchase = GetSelectedPurchaseItem() != null;
+            btnResolve.Enabled = hasPurchase;
+        }
+
+        private class PurchaseListItemView
+        {
+            public int Id { get; set; }
+            public int? MedicineId { get; set; }
+            public string MedicineName { get; set; }
+            public int RecommendedQuantity { get; set; }
+            public string Reason { get; set; }
+            public DateTime CreatedAt { get; set; }
         }
     }
 }
