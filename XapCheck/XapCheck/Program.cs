@@ -34,7 +34,7 @@ namespace XapCheck
             {
                 // Swallow startup DB exceptions to not block UI; operations will re-attempt later
             }
-            Application.Run(new Form1());
+            Application.Run(new MainForm());
         }
     }
 }
