@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
@@ -16,23 +16,7 @@ namespace XapCheck
 {
     public partial class MainForm : Form
     {
-        private void InitializeComponent()
-        {
-            this.SuspendLayout();
-            // 
-            // MainForm
-            // 
-            this.ClientSize = new System.Drawing.Size(284, 261);
-            this.Name = "MainForm";
-            this.Load += new System.EventHandler(this.MainForm_Load);
-            this.ResumeLayout(false);
-
-        }
-
-        private void MainForm_Load(object sender, EventArgs e)
-        {
-
-        }
+        
         //private HomePharmacyContext _dbContext;
         //private UserProfileController _userController;
         //private MedicineController _medicineController;
@@ -603,4 +587,4 @@ namespace XapCheck
         }
     }
 }
-}
+ 
