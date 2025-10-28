@@ -1,12 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace XapCheck
 {
-    public class MainForm
+    public partial class MainForm : Form
     {
         private System.ComponentModel.IContainer components = null;
         protected override void Dispose(bool disposing)
@@ -194,5 +195,4 @@ namespace XapCheck
         private System.Windows.Forms.DataGridView dgvPurchase;
         private System.Windows.Forms.DataGridView dgvMedicines;
     }
-}
 }
