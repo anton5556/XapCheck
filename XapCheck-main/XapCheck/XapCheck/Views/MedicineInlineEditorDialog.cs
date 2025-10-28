@@ -4,9 +4,11 @@ using XapCheck.Models;
 
 namespace XapCheck
 {
-    internal class MedicineInlineEditorDialog : Form
+    public class MedicineInlineEditorDialog : Form
     {
         public Medicine Medicine { get; private set; }
+        private Button _okButton;
+        private Button _cancelButton;
 
         public MedicineInlineEditorDialog()
         {
@@ -21,6 +23,7 @@ namespace XapCheck
                 ExpiryDate = DateTime.Today.AddDays(30),
                 PurchaseDate = DateTime.Today
             };
+            BuildMinimalUi();
         }
 
         public MedicineInlineEditorDialog(Medicine selected)
@@ -35,6 +38,27 @@ namespace XapCheck
                 ExpiryDate = DateTime.Today.AddDays(30),
                 PurchaseDate = DateTime.Today
             };
+            BuildMinimalUi();
+        }
+
+        private void BuildMinimalUi()
+        {
+            Text = "Medicine Editor";
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            Width = 420;
+            Height = 180;
+
+            _okButton = new Button { Text = "OK", DialogResult = DialogResult.OK, Anchor = AnchorStyles.Bottom | AnchorStyles.Right, Left = 210, Top = 100, Width = 80 };
+            _cancelButton = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, Anchor = AnchorStyles.Bottom | AnchorStyles.Right, Left = 300, Top = 100, Width = 80 };
+
+            Controls.Add(_okButton);
+            Controls.Add(_cancelButton);
+
+            AcceptButton = _okButton;
+            CancelButton = _cancelButton;
         }
     }
 }
